@@ -2,6 +2,7 @@ import 'package:bloc_pattern/bloc_pattern.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_food_delivery_app/bloc/cartListBloc.dart';
+import 'package:flutter_food_delivery_app/bloc/listStyleColor.dart';
 import 'package:flutter_food_delivery_app/model/foodItem.dart';
 
 class Cart extends StatelessWidget {
@@ -304,9 +305,56 @@ class CartListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Draggable(
+      data: foodItem,
+      maxSimultaneousDrags: 1,
+      child: DraggableChild(foodItem: foodItem),
+      feedback: DraggableChildFeedback(foodItem: foodItem),
+      childWhenDragging: foodItem.quantity > 1
+          ? DraggableChild(foodItem: foodItem)
+          : Container(),
+    );
+  }
+}
+
+class DraggableChild extends StatelessWidget {
+  final FoodItem foodItem;
+
+  const DraggableChild({Key key, @required this.foodItem}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       margin: EdgeInsets.only(bottom: 25),
       child: ItemContent(foodItem: foodItem),
+    );
+  }
+}
+
+class DraggableChildFeedback extends StatelessWidget {
+  final FoodItem foodItem;
+
+  const DraggableChildFeedback({Key key, @required this.foodItem})
+      : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorBloc colorBloc = BlocProvider.getBloc<ColorBloc>();
+
+    return Opacity(
+      opacity: 0.7,
+      child: StreamBuilder(
+          stream: colorBloc.colorStream,
+          builder: (context, snapshot) {
+            return Container(
+              margin: EdgeInsets.only(bottom: 25),
+              child: ItemContent(foodItem: foodItem),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(25),
+                color: snapshot.data != null ? snapshot.data : Colors.white,
+              ),
+            );
+          }),
     );
   }
 }
@@ -379,17 +427,44 @@ class CustomAppBar extends StatelessWidget {
             },
           ),
         ),
-        GestureDetector(
-          child: Padding(
-            padding: EdgeInsets.all(5),
-            child: Icon(
-              CupertinoIcons.delete,
-              size: 35,
-            ),
-          ),
-          onTap: () {},
-        ),
+        DragTargetWidget(),
       ],
+    );
+  }
+}
+
+class DragTargetWidget extends StatefulWidget {
+  @override
+  _DragTargetWidgetState createState() => _DragTargetWidgetState();
+}
+
+class _DragTargetWidgetState extends State<DragTargetWidget> {
+  final CartListBloc listBloc = BlocProvider.getBloc<CartListBloc>();
+  final ColorBloc colorBloc = BlocProvider.getBloc<ColorBloc>();
+
+  @override
+  Widget build(BuildContext context) {
+    return DragTarget<FoodItem>(
+      onWillAccept: (FoodItem foodItem) {
+        colorBloc.setColor(Colors.red);
+        return true;
+      },
+      onAccept: (FoodItem foodItem) {
+        listBloc.removeFromList(foodItem);
+        colorBloc.setColor(Colors.white);
+      },
+      onLeave: (FoodItem foodItem) {
+        colorBloc.setColor(Colors.white);
+      },
+      builder: (context, incoming, rejected) {
+        return Padding(
+          padding: EdgeInsets.all(5),
+          child: Icon(
+            CupertinoIcons.delete,
+            size: 35,
+          ),
+        );
+      },
     );
   }
 }
